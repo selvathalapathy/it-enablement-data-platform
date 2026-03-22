@@ -20,7 +20,9 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Dict
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 AWS_REGION = "ap-southeast-1"  # Singapore region
@@ -36,9 +38,9 @@ class CloudWatchMonitor:
     """
 
     def __init__(self):
-        self.cloudwatch = boto3.client('cloudwatch', region_name=AWS_REGION)
-        self.logs_client = boto3.client('logs', region_name=AWS_REGION)
-        self.sns_client = boto3.client('sns', region_name=AWS_REGION)
+        self.cloudwatch = boto3.client("cloudwatch", region_name=AWS_REGION)
+        self.logs_client = boto3.client("logs", region_name=AWS_REGION)
+        self.sns_client = boto3.client("sns", region_name=AWS_REGION)
 
     def create_etl_alarms(self):
         """
@@ -64,7 +66,7 @@ class CloudWatchMonitor:
                 "MetricName": "ETLSuccess",
                 "Namespace": "ITEnablement/ETL",
                 "Statistic": "Sum",
-                "Period": 3600,        # Check every 1 hour
+                "Period": 3600,  # Check every 1 hour
                 "EvaluationPeriods": 1,
                 "Threshold": 1,
                 "ComparisonOperator": "LessThanThreshold",  # Alert if success < 1 (i.e. = 0 = failed)
@@ -72,7 +74,6 @@ class CloudWatchMonitor:
                 "Dimensions": [{"Name": "Pipeline", "Value": "TransactionETL"}],
                 "AlarmActions": [SNS_TOPIC_ARN],  # Who to notify
             },
-
             # Alarm 2: ETL Processing Too Slow
             # Like a teacher noticing a student taking too long on an exam
             {
@@ -83,12 +84,11 @@ class CloudWatchMonitor:
                 "Statistic": "Average",
                 "Period": 3600,
                 "EvaluationPeriods": 1,
-                "Threshold": 1800,     # 30 minutes = 1800 seconds
+                "Threshold": 1800,  # 30 minutes = 1800 seconds
                 "ComparisonOperator": "GreaterThanThreshold",
                 "Dimensions": [{"Name": "Pipeline", "Value": "TransactionETL"}],
                 "AlarmActions": [SNS_TOPIC_ARN],
             },
-
             # Alarm 3: No Data Processed
             # Like a teacher noticing no homework was submitted
             {
@@ -97,7 +97,7 @@ class CloudWatchMonitor:
                 "MetricName": "ETLRowsProcessed",
                 "Namespace": "ITEnablement/ETL",
                 "Statistic": "Sum",
-                "Period": 86400,       # Check daily
+                "Period": 86400,  # Check daily
                 "EvaluationPeriods": 1,
                 "Threshold": 1,
                 "ComparisonOperator": "LessThanThreshold",
@@ -136,14 +136,18 @@ class CloudWatchMonitor:
                     "properties": {
                         "title": "ETL Pipeline Success Rate",
                         "metrics": [
-                            ["ITEnablement/ETL", "ETLSuccess", "Pipeline", "TransactionETL"]
+                            [
+                                "ITEnablement/ETL",
+                                "ETLSuccess",
+                                "Pipeline",
+                                "TransactionETL",
+                            ]
                         ],
                         "period": 3600,
                         "stat": "Sum",
-                        "view": "timeSeries"
-                    }
+                        "view": "timeSeries",
+                    },
                 },
-
                 # Widget 2: Rows Processed Per Day
                 # Bar chart showing how much data was processed
                 {
@@ -151,14 +155,18 @@ class CloudWatchMonitor:
                     "properties": {
                         "title": "Transaction Rows Processed Daily",
                         "metrics": [
-                            ["ITEnablement/ETL", "ETLRowsProcessed", "Pipeline", "TransactionETL"]
+                            [
+                                "ITEnablement/ETL",
+                                "ETLRowsProcessed",
+                                "Pipeline",
+                                "TransactionETL",
+                            ]
                         ],
                         "period": 86400,
                         "stat": "Sum",
-                        "view": "bar"
-                    }
+                        "view": "bar",
+                    },
                 },
-
                 # Widget 3: ETL Duration Trend
                 # Line chart showing if pipeline is getting slower over time
                 {
@@ -166,14 +174,18 @@ class CloudWatchMonitor:
                     "properties": {
                         "title": "ETL Pipeline Duration (seconds)",
                         "metrics": [
-                            ["ITEnablement/ETL", "ETLDurationSeconds", "Pipeline", "TransactionETL"]
+                            [
+                                "ITEnablement/ETL",
+                                "ETLDurationSeconds",
+                                "Pipeline",
+                                "TransactionETL",
+                            ]
                         ],
                         "period": 3600,
                         "stat": "Average",
-                        "view": "timeSeries"
-                    }
+                        "view": "timeSeries",
+                    },
                 },
-
                 # Widget 4: Alarm Status
                 # Red/Green status showing all alarms at a glance
                 {
@@ -184,16 +196,16 @@ class CloudWatchMonitor:
                             f"arn:aws:cloudwatch:{AWS_REGION}:123456789:alarm:ETL-Pipeline-Failed",
                             f"arn:aws:cloudwatch:{AWS_REGION}:123456789:alarm:ETL-Duration-Too-High",
                             f"arn:aws:cloudwatch:{AWS_REGION}:123456789:alarm:ETL-Zero-Rows-Processed",
-                        ]
-                    }
-                }
+                        ],
+                    },
+                },
             ]
         }
 
         try:
             self.cloudwatch.put_dashboard(
                 DashboardName="IT-Enablement-Platform",
-                DashboardBody=json.dumps(dashboard_body)
+                DashboardBody=json.dumps(dashboard_body),
             )
             logger.info("CloudWatch dashboard created: IT-Enablement-Platform")
         except Exception as e:
@@ -218,7 +230,7 @@ class CloudWatchMonitor:
         health_report = {
             "report_time": datetime.now().isoformat(),
             "period": "Last 24 hours",
-            "metrics": {}
+            "metrics": {},
         }
 
         for metric_name, stat in metrics_to_check:
@@ -230,7 +242,7 @@ class CloudWatchMonitor:
                     StartTime=start_time,
                     EndTime=end_time,
                     Period=86400,
-                    Statistics=[stat]
+                    Statistics=[stat],
                 )
 
                 datapoints = response.get("Datapoints", [])
@@ -248,7 +260,9 @@ class CloudWatchMonitor:
 
         return health_report
 
-    def publish_custom_metric(self, metric_name: str, value: float, unit: str = "Count"):
+    def publish_custom_metric(
+        self, metric_name: str, value: float, unit: str = "Count"
+    ):
         """
         Publish a custom metric to CloudWatch.
 
@@ -258,12 +272,14 @@ class CloudWatchMonitor:
         try:
             self.cloudwatch.put_metric_data(
                 Namespace="ITEnablement/Custom",
-                MetricData=[{
-                    "MetricName": metric_name,
-                    "Value": value,
-                    "Unit": unit,
-                    "Timestamp": datetime.utcnow()
-                }]
+                MetricData=[
+                    {
+                        "MetricName": metric_name,
+                        "Value": value,
+                        "Unit": unit,
+                        "Timestamp": datetime.utcnow(),
+                    }
+                ],
             )
             logger.info(f"Published metric: {metric_name} = {value} {unit}")
         except Exception as e:
@@ -295,7 +311,7 @@ def setup_monitoring():
 
     logger.info("=" * 50)
     logger.info(f"Platform Status: {health['status_emoji']} {health['status']}")
-    for metric, value in health['metrics'].items():
+    for metric, value in health["metrics"].items():
         logger.info(f"  {metric}: {value}")
     logger.info("=" * 50)
 

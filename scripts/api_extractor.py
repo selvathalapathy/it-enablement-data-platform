@@ -28,7 +28,9 @@ from datetime import datetime, date
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
@@ -38,6 +40,7 @@ class APIConfig:
     API configuration — like a contact card for each data source.
     Each API has a URL, authentication key and how many records to get per page.
     """
+
     name: str
     base_url: str
     api_key: str
@@ -58,11 +61,13 @@ class RESTAPIExtractor:
     def __init__(self, config: APIConfig):
         self.config = config
         self.session = requests.Session()
-        self.session.headers.update({
-            "Authorization": f"Bearer {config.api_key}",
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        })
+        self.session.headers.update(
+            {
+                "Authorization": f"Bearer {config.api_key}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            }
+        )
 
     def _make_request(self, endpoint: str, params: Dict = None) -> Dict:
         """
@@ -76,15 +81,19 @@ class RESTAPIExtractor:
         for attempt in range(self.config.retry_attempts):
             try:
                 logger.info(f"API request attempt {attempt + 1}: {url}")
-                response = self.session.get(url, params=params, timeout=self.config.timeout)
+                response = self.session.get(
+                    url, params=params, timeout=self.config.timeout
+                )
                 response.raise_for_status()
                 return response.json()
 
             except requests.exceptions.HTTPError as e:
                 if response.status_code == 429:
                     # 429 = Too many requests — like being told "wait your turn"
-                    wait_time = 2 ** attempt  # Wait 1s, 2s, 4s...
-                    logger.warning(f"Rate limited. Waiting {wait_time}s before retry...")
+                    wait_time = 2**attempt  # Wait 1s, 2s, 4s...
+                    logger.warning(
+                        f"Rate limited. Waiting {wait_time}s before retry..."
+                    )
                     time.sleep(wait_time)
                 elif response.status_code == 401:
                     logger.error("Authentication failed — check API key")
@@ -92,13 +101,13 @@ class RESTAPIExtractor:
                 else:
                     if attempt == self.config.retry_attempts - 1:
                         raise
-                    time.sleep(2 ** attempt)
+                    time.sleep(2**attempt)
 
             except requests.exceptions.ConnectionError:
                 if attempt == self.config.retry_attempts - 1:
                     raise
                 logger.warning(f"Connection error. Retrying in {2 ** attempt}s...")
-                time.sleep(2 ** attempt)
+                time.sleep(2**attempt)
 
         raise Exception(f"All {self.config.retry_attempts} attempts failed for {url}")
 
@@ -120,7 +129,7 @@ class RESTAPIExtractor:
                 "start_date": start_date,
                 "end_date": end_date,
                 "page": page,
-                "page_size": self.config.page_size
+                "page_size": self.config.page_size,
             }
 
             response = self._make_request("transactions", params)
@@ -129,7 +138,9 @@ class RESTAPIExtractor:
             records = response.get("data", [])
             all_records.extend(records)
 
-            logger.info(f"Page {page}: Got {len(records)} records. Total so far: {len(all_records)}")
+            logger.info(
+                f"Page {page}: Got {len(records)} records. Total so far: {len(all_records)}"
+            )
 
             # Check if there are more pages
             # Like checking if there are more boxes to unpack
@@ -165,19 +176,21 @@ class RESTAPIExtractor:
         return self._make_request("kpis", params)
 
 
-def save_to_s3(data: List[Dict], bucket: str, key: str, aws_region: str = "ap-southeast-1"):
+def save_to_s3(
+    data: List[Dict], bucket: str, key: str, aws_region: str = "ap-southeast-1"
+):
     """
     Save extracted data to AWS S3.
 
     Simple explanation: S3 is like a big filing cabinet in the cloud.
     We save the raw data here before cleaning it in the ETL pipeline.
     """
-    s3_client = boto3.client('s3', region_name=aws_region)
+    s3_client = boto3.client("s3", region_name=aws_region)
 
     payload = {
         "extracted_at": datetime.now().isoformat(),
         "record_count": len(data),
-        "data": data
+        "data": data,
     }
 
     try:
@@ -185,7 +198,7 @@ def save_to_s3(data: List[Dict], bucket: str, key: str, aws_region: str = "ap-so
             Bucket=bucket,
             Key=key,
             Body=json.dumps(payload, default=str),
-            ContentType="application/json"
+            ContentType="application/json",
         )
         logger.info(f"Saved {len(data)} records to s3://{bucket}/{key}")
         return True
@@ -210,17 +223,14 @@ def run_daily_extraction():
         name="TransactionAPI",
         base_url="https://api.example-payments.com/v1",
         api_key="your-api-key-here",  # In real life, this comes from AWS Secrets Manager
-        page_size=1000
+        page_size=1000,
     )
 
     extractor = RESTAPIExtractor(api_config)
 
     try:
         # Extract today's transactions
-        transactions = extractor.extract_transactions(
-            start_date=today,
-            end_date=today
-        )
+        transactions = extractor.extract_transactions(start_date=today, end_date=today)
 
         # Save raw data to S3
         raw_key = f"raw/transactions/{today}/transactions_raw.json"
@@ -231,7 +241,9 @@ def run_daily_extraction():
         health_key = f"raw/health/{today}/system_health.json"
         save_to_s3([health_data], "bcs-data-platform", health_key)
 
-        logger.info(f"Daily extraction completed successfully. {len(transactions)} transactions extracted.")
+        logger.info(
+            f"Daily extraction completed successfully. {len(transactions)} transactions extracted."
+        )
 
     except Exception as e:
         logger.error(f"Daily extraction failed: {e}")
